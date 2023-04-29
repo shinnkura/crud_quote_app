@@ -40,6 +40,30 @@ class _QuotesListState extends State<QuotesList> {
     });
   }
 
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     appBar: AppBar(
+  //       title: Text('Quotes'),
+  //     ),
+  //     body: ListView.builder(
+  //       itemCount: quotesList.length,
+  //       itemBuilder: (context, index) {
+  //         return ListTile(
+  //           title: Text(quotesList[index].text),
+  //           subtitle: Text(quotesList[index].author),
+  //           onTap: () => _showDialog(context, quote: quotesList[index]),
+  //         );
+  //       },
+  //     ),
+  //     floatingActionButton: FloatingActionButton(
+  //       onPressed: () {
+  //         _showDialog(context);
+  //       },
+  //       child: Icon(Icons.add),
+  //     ),
+  //   );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,10 +73,30 @@ class _QuotesListState extends State<QuotesList> {
       body: ListView.builder(
         itemCount: quotesList.length,
         itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(quotesList[index].text),
-            subtitle: Text(quotesList[index].author),
-            onTap: () => _showDialog(context, quote: quotesList[index]),
+          return Dismissible(
+            key: UniqueKey(),
+            background: Container(
+              color: Colors.red,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Icon(Icons.delete, color: Colors.white),
+                    Icon(Icons.delete, color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+            onDismissed: (direction) async {
+              await QuoteDatabase.instance.delete(quotesList[index].id!);
+              fetchQuotes();
+            },
+            child: ListTile(
+              title: Text(quotesList[index].text),
+              subtitle: Text(quotesList[index].author),
+              onTap: () => _showDialog(context, quote: quotesList[index]),
+            ),
           );
         },
       ),
@@ -64,91 +108,91 @@ class _QuotesListState extends State<QuotesList> {
       ),
     );
   }
+}
 
-  void _showDialog(BuildContext context, {Quote? quote}) {
-    final _formKey = GlobalKey<FormState>();
-    final _quoteTextController = TextEditingController(text: quote?.text ?? '');
-    final _quoteAuthorController =
-        TextEditingController(text: quote?.author ?? '');
+void _showDialog(BuildContext context, {Quote? quote}) {
+  final _formKey = GlobalKey<FormState>();
+  final _quoteTextController = TextEditingController(text: quote?.text ?? '');
+  final _quoteAuthorController =
+      TextEditingController(text: quote?.author ?? '');
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(quote == null ? 'Add Quote' : 'Update Quote'),
-          content: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _quoteTextController,
-                  decoration: InputDecoration(labelText: 'Quote'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a quote';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _quoteAuthorController,
-                  decoration: InputDecoration(labelText: 'Author'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter an author';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(quote == null ? 'Add Quote' : 'Update Quote'),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _quoteTextController,
+                decoration: InputDecoration(labelText: 'Quote'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a quote';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _quoteAuthorController,
+                decoration: InputDecoration(labelText: 'Author'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an author';
+                  }
+                  return null;
+                },
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_formKey.currentState!.validate()) {
+                if (quote == null) {
+                  // Create a new quote
+                  await QuoteDatabase.instance.create(
+                    Quote(
+                      text: _quoteTextController.text,
+                      author: _quoteAuthorController.text,
+                    ),
+                  );
+                } else {
+                  // Update the existing quote
+                  await QuoteDatabase.instance.update(
+                    quote.copyWith(
+                      text: _quoteTextController.text,
+                      author: _quoteAuthorController.text,
+                    ),
+                  );
+                }
+                // fetchQuotes();
                 Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
+              }
+            },
+            child: Text(quote == null ? 'Add' : 'Update'),
+          ),
+          if (quote != null)
             TextButton(
               onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  if (quote == null) {
-                    // Create a new quote
-                    await QuoteDatabase.instance.create(
-                      Quote(
-                        text: _quoteTextController.text,
-                        author: _quoteAuthorController.text,
-                      ),
-                    );
-                  } else {
-                    // Update the existing quote
-                    await QuoteDatabase.instance.update(
-                      quote.copyWith(
-                        text: _quoteTextController.text,
-                        author: _quoteAuthorController.text,
-                      ),
-                    );
-                  }
-                  fetchQuotes();
-                  Navigator.of(context).pop();
-                }
+                await QuoteDatabase.instance.delete(quote.id!);
+                // fetchQuotes();
+                Navigator.of(context).pop();
               },
-              child: Text(quote == null ? 'Add' : 'Update'),
+              child: Text('Delete'),
             ),
-            if (quote != null)
-              TextButton(
-                onPressed: () async {
-                  await QuoteDatabase.instance.delete(quote.id!);
-                  fetchQuotes();
-                  Navigator.of(context).pop();
-                },
-                child: Text('Delete'),
-              ),
-          ],
-        );
-      },
-    );
-  }
+        ],
+      );
+    },
+  );
 }
